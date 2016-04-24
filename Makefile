@@ -1,8 +1,8 @@
 # Makefile for sjasmplus created by Tygrys' hands.
 
-GCC=gcc
+GCC=clang
 CC=$(GCC)
-GPP=g++
+GPP=clang++
 C++=$(GPP)
 
 EXE=sjasmplus
@@ -11,7 +11,7 @@ CFLAGS=-O2 -DLUA_USE_LINUX -DMAX_PATH=PATH_MAX -Ilua5.1 -Itolua++ -g -funsigned-
 CXXFLAGS=$(CFLAGS)
 
 #for Linux
-LDFLAGS=-Wl,--no-as-needed -ldl
+LDFLAGS=-Wl -ldl
 
 #sjasmplus object files
 OBJS=sjasm/devices.o sjasm/directives.o sjasm/io_snapshots.o sjasm/io_trd.o \
