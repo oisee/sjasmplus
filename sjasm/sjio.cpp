@@ -56,7 +56,7 @@ static int tape_seek = 0;
 static int tape_length = 0;
 static int tape_parity = 0x55;
 static FILE* FP_tapout = NULL;
-static FILE* FP_Input = NULL, * FP_Output = NULL, * FP_RAW = NULL;
+static FILE* FP_Input = nullptr, * FP_Output = nullptr, * FP_HEX = nullptr, * FP_RAW = nullptr;
 static FILE* FP_ListingFile = NULL,* FP_ExportFile = NULL;
 static aint WBLength = 0;
 
@@ -389,6 +389,8 @@ static void EmitByteNoListing(int byte, bool preserveDeviceMemory = false) {
 	if (LASTPASS == pass) {
 		WriteBuffer[WBLength++] = (char)byte;
 		if (DESTBUFLEN == WBLength) WriteDest();
+		// Intel HEX has own buffering scheme and needs fresh CurAddress, so it's outside of WriteDest()
+		if (nullptr != FP_HEX) EmitToHex(static_cast<uint8_t>(byte));
 	}
 	// the page-checking in device mode must be done in all passes, the slot can have "wrap" option
 	if (DeviceID) {
@@ -931,6 +933,13 @@ void OpenDest(int mode) {
 		Error("opening file for write", Options::DestinationFName.string().c_str(), FATAL);
 	}
 	Options::NoDestinationFile = false;
+	if (nullptr == FP_HEX && "-" == Options::HEXFName) {
+		FP_HEX = stdout;
+		fflush(stdout);
+	}
+	if (nullptr == FP_HEX && Options::HEXFName.has_filename() && !FOPEN_ISOK(FP_HEX, Options::HEXFName, "w")) {
+		Error("opening file for write", Options::HEXFName.string().c_str());
+	}
 	if (NULL == FP_RAW && "-" == Options::RAWFName) {
 		FP_RAW = stdout;
 		fflush(stdout);
@@ -1013,6 +1022,11 @@ void Close() {
 	if (FP_ExportFile != NULL) {
 		fclose(FP_ExportFile);
 		FP_ExportFile = NULL;
+	}
+	if (nullptr != FP_HEX) {
+		CloseHex();
+		if (stdout != FP_HEX) fclose(FP_HEX);
+		FP_HEX = nullptr;
 	}
 	if (FP_RAW != NULL) {
 		if (stdout != FP_RAW) fclose(FP_RAW);
@@ -1370,6 +1384,61 @@ void WriteLabelEquValue(const char* name, aint value, FILE* f) {
 
 void WriteExp(const char* n, aint v) {
 	WriteLabelEquValue(n, v, FP_ExportFile);
+}
+
+constexpr const aint HEX_RECORD_MAX = 16;
+static uint8_t hexBytes[HEX_RECORD_MAX];
+static aint hexCnt = 0;
+static aint hexAddress = 0;				// original address where buffered data starts
+
+static void WriteHexRecord(const uint8_t block_type, const uint16_t address = 0, const uint8_t length = 0, const uint8_t* data = nullptr) {
+	assert(0x00 == block_type || 0x01 == block_type || 0x03 == block_type);	// currently supported block types
+	assert((0 == length) || ((nullptr != data) && length <= HEX_RECORD_MAX));
+
+	static char hexTxt[] { ":llaaaabbddddddddddddddddddddddddddddddddcc\n" };
+						//  :10123400484558206F6E6C790A70657220313620FF\n\0
+	static_assert(1+(1+2+1+HEX_RECORD_MAX+1)*2+2 == sizeof(hexTxt));
+
+	char* toTxt = hexTxt + 1;
+	PrintHex(toTxt, length, 2);
+	PrintHex(toTxt, address, 4);
+	PrintHex(toTxt, block_type, 2);
+	uint8_t crc = -length - ((address >> 8) & 255) - (address & 255) - block_type;
+	for (const uint8_t* valuePtr = data; valuePtr < data + length; ++valuePtr) {
+		PrintHex(toTxt, *valuePtr, 2);
+		crc -= *valuePtr;
+	}
+	PrintHex(toTxt, crc, 2);
+	*toTxt++ = '\n';
+	*toTxt++ = 0;
+	fputs(hexTxt, FP_HEX);
+}
+
+static void FlushHexBuffer() {
+	assert(nullptr != FP_HEX && 0 <= hexCnt && hexCnt <= HEX_RECORD_MAX);
+	if (0 == hexCnt) return;			// buffer is already empty
+	WriteHexRecord(0x00, hexAddress, hexCnt, hexBytes);
+	hexCnt = 0;
+}
+
+void EmitToHex(const uint8_t mc) {
+	assert(0 <= hexCnt && hexCnt < HEX_RECORD_MAX);
+	if (hexAddress + hexCnt != CurAddress) FlushHexBuffer();	// flush buffer if there is address jump
+	if (0 == hexCnt) hexAddress = CurAddress;					// set current address of buffer at beginning
+	hexBytes[hexCnt++] = mc;
+	if (HEX_RECORD_MAX == hexCnt) FlushHexBuffer();				// buffer is full, write hex record
+}
+
+void CloseHex() {
+	FlushHexBuffer();					// write remaining buffer (if any)
+	if (0 <= StartAddress) {			// write start address if it was provided
+		uint8_t sa[4] {
+			static_cast<uint8_t>(StartAddress >> 24), static_cast<uint8_t>(StartAddress >> 16),
+			static_cast<uint8_t>(StartAddress >> 8), static_cast<uint8_t>(StartAddress)
+		};
+		WriteHexRecord(0x03, 0x0000, sizeof(sa), sa);
+	}
+	WriteHexRecord(0x01);				// write EOF record
 }
 
 /////// source-level-debugging support by Ckirby
