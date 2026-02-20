@@ -1024,7 +1024,7 @@ void Close() {
 		FP_ExportFile = NULL;
 	}
 	if (nullptr != FP_HEX) {
-		CloseHex();
+		FinalizeHex();
 		if (stdout != FP_HEX) fclose(FP_HEX);
 		FP_HEX = nullptr;
 	}
@@ -1429,7 +1429,7 @@ void EmitToHex(const uint8_t mc) {
 	if (HEX_RECORD_MAX == hexCnt) FlushHexBuffer();				// buffer is full, write hex record
 }
 
-void CloseHex() {
+void FinalizeHex() {
 	FlushHexBuffer();					// write remaining buffer (if any)
 	if (0 <= StartAddress) {			// write start address if it was provided
 		uint8_t sa[4] {

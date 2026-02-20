@@ -132,7 +132,7 @@ int ReadFileToCStringsList(CStringsList*& f, const char* end);
 void WriteLabelEquValue(const char* name, aint value, FILE* f);
 void WriteExp(const char* n, aint v);
 void EmitToHex(const uint8_t mc);   // Intel HEX writer
-void CloseHex();                    // Intel HEX writer - close
+void FinalizeHex();                 // Intel HEX writer - close
 
 /////// source-level-debugging support by Ckirby
 bool IsSldExportActive();
