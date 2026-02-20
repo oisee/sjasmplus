@@ -8,6 +8,9 @@ start:
     DB      "per 16 bytes\n"
     ORG     $3456
     DB      "change adr by ORG\n"
+    di                  ; try some instructions
+    ld      hl,$ABCD
+    jr      $
 
     END     start
 
@@ -30,3 +33,4 @@ start:
 - block 03 start segment address?? Not sure if this is compatible with Z80 machines, but at least try
 - everything else seems out of scope, especially as I don't plan banking support initially
 - in case of banking I guess block 04 may be of interest
+*/

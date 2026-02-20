@@ -937,7 +937,7 @@ void OpenDest(int mode) {
 		FP_HEX = stdout;
 		fflush(stdout);
 	}
-	if (nullptr == FP_HEX && Options::HEXFName.has_filename() && !FOPEN_ISOK(FP_HEX, Options::HEXFName, "w")) {
+	if (nullptr == FP_HEX && Options::HEXFName.has_filename() && !FOPEN_ISOK(FP_HEX, Options::HEXFName, "wb")) {
 		Error("opening file for write", Options::HEXFName.string().c_str());
 	}
 	if (NULL == FP_RAW && "-" == Options::RAWFName) {
