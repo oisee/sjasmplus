@@ -1529,6 +1529,35 @@ static void dirINCLUDE() {
 	}
 }
 
+static void dirHEXOUT() {
+	if (LASTPASS != pass) {
+		SkipToEol(lp);
+	} else {
+		const std::filesystem::path fnaam = GetOutputFileName(lp);
+		if (fnaam.has_filename())	OpenHex(fnaam);
+		else						Error("[HEXOUT] invalid filename", fnaam.string().c_str());
+	}
+}
+
+static void dirHEXEND()
+{
+	if (LASTPASS != pass) {
+		SkipToEol(lp);
+		return;
+	}
+	char* p = lp;
+	aint val;
+	if (ParseExpression(lp, val)) {		// -1 is explicit "start address OFF", also affects global state (vs `END` directive)
+		if (val > 65535 || val < -1)	ErrorInt("[HEXEND] Invalid address", IF_FIRST);
+		else 							StartAddress = val;
+	} else {
+		lp = p;
+	}
+	if (!CloseHex()) {
+		Error("[HEXEND] HEX output was not active");
+	}
+}
+
 static void dirOUTPUT() {
 	if (LASTPASS != pass) {
 		SkipToEol(lp);
@@ -2246,6 +2275,8 @@ void InsertDirectives() {
 	DirectivesTable.insertd(".ifnused", dirIFNUSED);
 	DirectivesTable.insertd(".ifdef", dirIFDEF);
 	DirectivesTable.insertd(".ifndef", dirIFNDEF);
+	DirectivesTable.insertd(".hexout", dirHEXOUT);
+	DirectivesTable.insertd(".hexend", dirHEXEND);
 	DirectivesTable.insertd(".output", dirOUTPUT);
 	DirectivesTable.insertd(".outend", dirOUTEND);
 	DirectivesTable.insertd(".tapout", dirTAPOUT);

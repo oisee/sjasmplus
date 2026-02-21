@@ -131,8 +131,11 @@ void SeekDest(long, int);
 int ReadFileToCStringsList(CStringsList*& f, const char* end);
 void WriteLabelEquValue(const char* name, aint value, FILE* f);
 void WriteExp(const char* n, aint v);
-void EmitToHex(const uint8_t mc);   // Intel HEX writer
-void FinalizeHex();                 // Intel HEX writer - close
+
+void OpenHex(const std::filesystem::path & fname);  // Intel HEX writer - if empty filename, then --hex argument is applied
+void EmitToHex(const uint8_t mc);                   // Intel HEX writer - buffered emit of one machine code byte
+void FinalizeHex();                                 // Intel HEX writer - close (flush buffer, add EOF record)
+bool CloseHex();                                    // finalize + close file handle, returns true on success (false = file not open?)
 
 /////// source-level-debugging support by Ckirby
 bool IsSldExportActive();

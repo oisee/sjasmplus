@@ -933,15 +933,6 @@ void OpenDest(int mode) {
 		Error("opening file for write", Options::DestinationFName.string().c_str(), FATAL);
 	}
 	Options::NoDestinationFile = false;
-	if (nullptr == FP_HEX && "-" == Options::HEXFName) {
-		FP_HEX = stdout;
-		fflush(stdout);
-	}
-	if (nullptr == FP_HEX && Options::HEXFName.has_filename() && !FOPEN_ISOK(FP_HEX, Options::HEXFName, "wb")) {
-		// use fopen "w" mode to get CRLF EOLs on mingw windows build.
-		// To make CI testing simpler and force world into *NIX way there is "wb" right now
-		Error("opening file for write", Options::HEXFName.string().c_str());
-	}
 	if (NULL == FP_RAW && "-" == Options::RAWFName) {
 		FP_RAW = stdout;
 		fflush(stdout);
@@ -1025,11 +1016,7 @@ void Close() {
 		fclose(FP_ExportFile);
 		FP_ExportFile = NULL;
 	}
-	if (nullptr != FP_HEX) {
-		FinalizeHex();
-		if (stdout != FP_HEX) fclose(FP_HEX);
-		FP_HEX = nullptr;
-	}
+	CloseHex();
 	if (FP_RAW != NULL) {
 		if (stdout != FP_RAW) fclose(FP_RAW);
 		FP_RAW = NULL;
@@ -1423,6 +1410,22 @@ static void FlushHexBuffer() {
 	hexCnt = 0;
 }
 
+void OpenHex(const std::filesystem::path & fname) {
+	if (!fname.has_filename()) return;
+	if (nullptr != FP_HEX) {
+		Error("HEX output is already active, can't open for file:", fname.string().c_str(), SUPPRESS);
+		return;
+	}
+	if ("-" == fname) {
+		FP_HEX = stdout;
+		fflush(stdout);
+	} else if (!FOPEN_ISOK(FP_HEX, fname, "wb")) {
+		// use fopen "w" mode to get CRLF EOLs on mingw windows build.
+		// To make CI testing simpler and force world into *NIX LF way there is "wb" right now
+		Error("opening HEX file for write", fname.string().c_str());
+	}
+}
+
 void EmitToHex(const uint8_t mc) {
 	assert(0 <= hexCnt && hexCnt < HEX_RECORD_MAX);
 	if (hexAddress + hexCnt != CurAddress) FlushHexBuffer();	// flush buffer if there is address jump
@@ -1434,13 +1437,21 @@ void EmitToHex(const uint8_t mc) {
 void FinalizeHex() {
 	FlushHexBuffer();					// write remaining buffer (if any)
 	if (0 <= StartAddress) {			// write start address if it was provided
-		uint8_t sa[4] {
-			static_cast<uint8_t>(StartAddress >> 24), static_cast<uint8_t>(StartAddress >> 16),
-			static_cast<uint8_t>(StartAddress >> 8), static_cast<uint8_t>(StartAddress)
-		};
-		WriteHexRecord(0x03, 0x0000, sizeof(sa), sa);
+		hexBytes[0] = static_cast<uint8_t>(StartAddress >> 24);
+		hexBytes[1] = static_cast<uint8_t>(StartAddress >> 16);
+		hexBytes[2] = static_cast<uint8_t>(StartAddress >>  8);
+		hexBytes[3] = static_cast<uint8_t>(StartAddress >>  0);
+		WriteHexRecord(0x03, 0x0000, 4, hexBytes);
 	}
 	WriteHexRecord(0x01);				// write EOF record
+}
+
+bool CloseHex() {
+	if (nullptr == FP_HEX) return false;
+	FinalizeHex();
+	if (stdout != FP_HEX) fclose(FP_HEX);
+	FP_HEX = nullptr;
+	return true;
 }
 
 /////// source-level-debugging support by Ckirby

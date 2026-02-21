@@ -800,7 +800,10 @@ int main(int argc, char **argv) {
 		++pass;
 		if (pass == LASTPASS) OpenSld();	//open source level debugging file (BEFORE InitPass)
 		InitPass();
-		if (pass == LASTPASS) OpenDest();
+		if (pass == LASTPASS) {
+			OpenDest();
+			OpenHex(Options::HEXFName);
+		}
 
 		static bool warn_stdin_default_lst = true;
 		for (SSource & src : sourceFiles) {

@@ -1,4 +1,4 @@
-error: opening file for write: .
+error: opening HEX file for write: .
 # file opened: hex_invalid_filename.asm
 1     0000 21               DB "!"
 2     0001                  ; `--hex=.` is invalid filename to open for write, at least in Linux
