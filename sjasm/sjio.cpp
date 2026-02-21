@@ -938,6 +938,8 @@ void OpenDest(int mode) {
 		fflush(stdout);
 	}
 	if (nullptr == FP_HEX && Options::HEXFName.has_filename() && !FOPEN_ISOK(FP_HEX, Options::HEXFName, "wb")) {
+		// use fopen "w" mode to get CRLF EOLs on mingw windows build.
+		// To make CI testing simpler and force world into *NIX way there is "wb" right now
 		Error("opening file for write", Options::HEXFName.string().c_str());
 	}
 	if (NULL == FP_RAW && "-" == Options::RAWFName) {
