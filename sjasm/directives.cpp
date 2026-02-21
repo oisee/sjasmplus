@@ -1546,14 +1546,16 @@ static void dirHEXEND()
 		return;
 	}
 	char* p = lp;
-	aint val;
-	if (ParseExpression(lp, val)) {		// -1 is explicit "start address OFF", also affects global state (vs `END` directive)
-		if (val > 65535 || val < -1)	ErrorInt("[HEXEND] Invalid address", IF_FIRST);
-		else 							StartAddress = val;
+	aint start = StartAddress;
+	if (ParseExpression(lp, start)) {		// -1 is explicit "start address OFF", also affects global state (vs `END` directive)
+		if (start < -1 || 0xFFFF < start) {
+			ErrorInt("[HEXEND] Invalid address", start, IF_FIRST);
+			start = StartAddress;
+		}
 	} else {
 		lp = p;
 	}
-	if (!CloseHex()) {
+	if (!CloseHex(start)) {
 		Error("[HEXEND] HEX output was not active");
 	}
 }

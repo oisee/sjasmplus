@@ -1419,6 +1419,7 @@ void OpenHex(const std::filesystem::path & fname) {
 	if ("-" == fname) {
 		FP_HEX = stdout;
 		fflush(stdout);
+		switchStdOutIntoBinaryMode();
 	} else if (!FOPEN_ISOK(FP_HEX, fname, "wb")) {
 		// use fopen "w" mode to get CRLF EOLs on mingw windows build.
 		// To make CI testing simpler and force world into *NIX LF way there is "wb" right now
@@ -1434,21 +1435,17 @@ void EmitToHex(const uint8_t mc) {
 	if (HEX_RECORD_MAX == hexCnt) FlushHexBuffer();				// buffer is full, write hex record
 }
 
-void FinalizeHex() {
+bool CloseHex(const aint start) {
+	if (nullptr == FP_HEX) return false;
 	FlushHexBuffer();					// write remaining buffer (if any)
-	if (0 <= StartAddress) {			// write start address if it was provided
-		hexBytes[0] = static_cast<uint8_t>(StartAddress >> 24);
-		hexBytes[1] = static_cast<uint8_t>(StartAddress >> 16);
-		hexBytes[2] = static_cast<uint8_t>(StartAddress >>  8);
-		hexBytes[3] = static_cast<uint8_t>(StartAddress >>  0);
+	if (0 <= start) {					// write start address if it was provided
+		hexBytes[0] = static_cast<uint8_t>(start >> 24);
+		hexBytes[1] = static_cast<uint8_t>(start >> 16);
+		hexBytes[2] = static_cast<uint8_t>(start >>  8);
+		hexBytes[3] = static_cast<uint8_t>(start >>  0);
 		WriteHexRecord(0x03, 0x0000, 4, hexBytes);
 	}
 	WriteHexRecord(0x01);				// write EOF record
-}
-
-bool CloseHex() {
-	if (nullptr == FP_HEX) return false;
-	FinalizeHex();
 	if (stdout != FP_HEX) fclose(FP_HEX);
 	FP_HEX = nullptr;
 	return true;

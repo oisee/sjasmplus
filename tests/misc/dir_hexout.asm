@@ -37,7 +37,7 @@ start_2:
 
 === directives syntax
 ; HEXOUT <hex filename>
-; HEXEND <start_address>    ; this affects also the global "start address" state (directive `END`)
+; HEXEND [<start_address>]  ; default comes from global state StartAddress (`END` directive)
 ; HEXEND -1                 ; explicit start address OFF
 
 === implementation specifics/peculiarities
