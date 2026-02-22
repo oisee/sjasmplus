@@ -1410,11 +1410,11 @@ static void FlushHexBuffer() {
 	hexCnt = 0;
 }
 
-void OpenHex(const std::filesystem::path & fname) {
-	if (!fname.has_filename()) return;
+bool OpenHex(const std::filesystem::path & fname) {
+	if (!fname.has_filename()) return false;
 	if (nullptr != FP_HEX) {
 		Error("HEX output is already active, can't open for file:", fname.string().c_str(), SUPPRESS);
-		return;
+		return false;
 	}
 	if ("-" == fname) {
 		FP_HEX = stdout;
@@ -1424,7 +1424,9 @@ void OpenHex(const std::filesystem::path & fname) {
 		// use fopen "w" mode to get CRLF EOLs on mingw windows build.
 		// To make CI testing simpler and force world into *NIX LF way there is "wb" right now
 		Error("opening HEX file for write", fname.string().c_str());
+		return false;
 	}
+	return true;
 }
 
 void EmitToHex(const uint8_t mc) {
@@ -1449,6 +1451,37 @@ bool CloseHex(const aint start) {
 	if (stdout != FP_HEX) fclose(FP_HEX);
 	FP_HEX = nullptr;
 	return true;
+}
+
+bool SaveHex(const std::filesystem::path & fname, aint start, aint length, aint start_adr) {
+	if (!DeviceID) return false;
+	if (!OpenHex(fname)) return false;
+	assert(0 <= start && start <= 0xFFFF && 1 <= length && start + length <= 0x1'0000);
+	//unsigned int addadr = 0,save = 0;
+	for (int i = 0; i < Device->SlotsCount; ++i) {
+		CDeviceSlot* slot = Device->GetSlot(i);
+		if (start < slot->Address) return false;	// shouldn't be possible
+		while (start < slot->Address + slot->Size) {
+			aint save = std::min(length, slot->Size - (start - slot->Address));
+			while (HEX_RECORD_MAX <= save) {
+				WriteHexRecord(0x00, start, HEX_RECORD_MAX, slot->Page->RAM + (start - slot->Address));
+				start += HEX_RECORD_MAX;
+				length -= HEX_RECORD_MAX;
+				save -= HEX_RECORD_MAX;
+			}
+			if (0 < save) {
+				WriteHexRecord(0x00, start, save, slot->Page->RAM + (start - slot->Address));
+				start += save;
+				length -= save;
+			}
+			if (length <= 0) {
+				assert(0 == hexCnt);				// this is only active HEX writer, the buffer should/must be empty
+				hexCnt = 0;							// but make sure the HEXOUT buffer is empty to reuse CloseHex()
+				return CloseHex(start_adr);
+			}
+		}
+	}
+	return false;									// shouldn't be possible
 }
 
 /////// source-level-debugging support by Ckirby

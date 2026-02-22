@@ -1058,6 +1058,34 @@ static void dirSAVEAMSDOS() {
 	}
 }
 
+static void dirSAVEHEX() {
+	if (!DeviceID) {
+		Error("SAVEHEX works in real device emulation mode (See DEVICE)");
+		SkipToEol(lp);
+		return;
+	}
+	bool exec = (LASTPASS == pass);
+	const std::filesystem::path fnaam = GetOutputFileName(lp);
+	aint args[] = { -1, -1, -1 };	// address, size, start
+	const bool optional[] = {false, false, true};
+	if (!anyComma(lp) || !getIntArguments<3>(lp, args, optional) || !fnaam.has_filename()) {
+		Error("[SAVEHEX] expected syntax is <filename>,<address>,<size>[,<start = -1>]", bp, SUPPRESS);
+		return;
+	}
+	aint &address = args[0], &size = args[1], &start = args[2];
+	if (address < 0 || size < 1 || 0x10000 < address + size) {
+		Error("[SAVEHEX] [address, size] region outside of 64ki", bp);
+		return;
+	}
+	if (start < -1 || 0xFFFF < start) {
+		ErrorInt("[SAVEHEX] start should be -1 to off or uint16", start);
+		start = -1;
+	}
+	if (exec && !SaveHex(fnaam, address, size, start)) {
+		Error("[SAVEHEX] Error writing file (Disk full?)", bp, IF_FIRST);
+	}
+}
+
 static void dirSAVEHOB() {
 	if (!DeviceID || pass != LASTPASS) {
 		if (!DeviceID) Error("SAVEHOB only allowed in real device emulation mode (See DEVICE)");
@@ -2267,6 +2295,7 @@ void InsertDirectives() {
 	DirectivesTable.insertd(".save3dos", dirSAVE3DOS);
 	DirectivesTable.insertd(".saveamsdos", dirSAVEAMSDOS);
 	DirectivesTable.insertd(".savecpr", dirSAVECPR);
+	DirectivesTable.insertd(".savehex", dirSAVEHEX);
 	DirectivesTable.insertd(".shellexec", dirSHELLEXEC);
 /*#ifdef WIN32
 	DirectivesTable.insertd(".winexec", dirWINEXEC);
