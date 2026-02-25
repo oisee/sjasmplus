@@ -199,7 +199,7 @@ $(BUILD_DIR_UT)/%.o : %.cpp
 	@mkdir -p $(@D)
 	$(COMPILE.cc) -DADD_UNIT_TESTS -I$(SUBDIR_UT) $(OUTPUT_OPTION) $<
 
-.PHONY: all install uninstall clean docs tests memcheck callgrind coverage upx srctar
+.PHONY: all install install-user uninstall clean docs tests memcheck callgrind coverage upx srctar
 
 # "all" will also copy the produced binary into project root directory (to mimick old makefile)
 all: $(BUILD_EXE)
@@ -228,6 +228,9 @@ endif
 install: $(BUILD_EXE)
 	$(INSTALL) -d "$(STAGEDIR)/$(PREFIX)/bin"
 	$(INSTALL) $(BUILD_EXE) "$(STAGEDIR)/$(PREFIX)/bin"
+
+install-user: PREFIX=$(HOME)/.local
+install-user: install
 
 uninstall:
 	$(UNINSTALL) "$(STAGEDIR)/$(PREFIX)/bin/$(EXE_BASE_NAME)"
